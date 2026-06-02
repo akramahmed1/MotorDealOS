@@ -65,8 +65,16 @@ export default function VehicleModal({ vehicle, companyId, onClose, onSaved }: V
   const supabase = createBrowserClient();
 
   useEffect(() => {
-    if (vehicle) setForm(vehicle);
-    else setForm(emptyVehicle);
+    if (vehicle) {
+      setForm({
+        ...vehicle,
+        features: typeof vehicle.features === 'object' && vehicle.features !== null
+          ? JSON.stringify(vehicle.features, null, 2)
+          : vehicle.features || '',
+      });
+    } else {
+      setForm(emptyVehicle);
+    }
   }, [vehicle]);
 
   const handleChange = (field: keyof Vehicle, value: string | number) => {
@@ -77,10 +85,37 @@ export default function VehicleModal({ vehicle, companyId, onClose, onSaved }: V
     e.preventDefault();
     setSaving(true);
 
+    // Build payload with ONLY editable fields
+    // Exclude: days_on_market, total_cost_basis, profit_projection (computed/generated)
     const payload = {
       company_id: companyId,
-      ...form,
-      features: form.features ? JSON.parse(form.features || '{}') : {},
+      vin: form.vin,
+      year: form.year,
+      make: form.make,
+      model: form.model,
+      trim: form.trim,
+      color: form.color,
+      body_style: form.body_style,
+      miles: form.miles,
+      price: form.price,
+      status: form.status,
+      lot_location: form.lot_location,
+      acquisition_cost: form.acquisition_cost,
+      transport_cost: form.transport_cost,
+      inspection_cost: form.inspection_cost,
+      service_cost: form.service_cost,
+      wash_cost: form.wash_cost,
+      detail_cost: form.detail_cost,
+      garage_cost: form.garage_cost,
+      marketing_cost: form.marketing_cost,
+      video_url: form.video_url,
+      features: (() => {
+        try {
+          return form.features ? JSON.parse(form.features) : {};
+        } catch {
+          return {};
+        }
+      })(),
     };
 
     if (vehicle?.id) {
