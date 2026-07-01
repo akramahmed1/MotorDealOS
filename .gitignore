@@ -1,33 +1,26 @@
 # Dependencies
 node_modules/
 .pnpm-store/
-ECHO is off.
 .env
 .env.local
 .env.production
-ECHO is off.
 # Next.js
 .next/
 out/
-ECHO is off.
 # Supabase
 supabase/.temp/
-ECHO is off.
 # OS
 .DS_Store
 Thumbs.db
-ECHO is off.
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-ECHO is off.
 # Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-ECHO is off.
 # Testing
 coverage/
