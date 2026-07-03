@@ -220,6 +220,7 @@ export default function LeadsPage() {
       {quickAddOpen && (
         <QuickAddLeadModal
           companyId="00000000-0000-0000-0000-000000000001"
+          vehicles={vehicles}
           onClose={() => setQuickAddOpen(false)}
           onSaved={loadData}
         />

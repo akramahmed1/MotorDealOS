@@ -41,6 +41,7 @@ const sourceOptions = [
 
 export default function LeadModal({ lead, companyId, vehicles, onClose, onSaved }: LeadModalProps) {
   const [form, setForm] = useState<Lead>(emptyLead);
+  const [consent, setConsent] = useState(false);
   const [saving, setSaving] = useState(false);
   const supabase = createBrowserClient();
 
@@ -55,6 +56,10 @@ export default function LeadModal({ lead, companyId, vehicles, onClose, onSaved 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!lead?.id && !consent) {
+      alert('Confirm the customer agreed to be contacted before saving.');
+      return;
+    }
     setSaving(true);
 
     const payload = {
@@ -74,9 +79,20 @@ export default function LeadModal({ lead, companyId, vehicles, onClose, onSaved 
       if (error) alert('Update failed: ' + error.message);
       else onSaved();
     } else {
-      const { error } = await supabase.from('leads').insert(payload);
-      if (error) alert('Insert failed: ' + error.message);
-      else onSaved();
+      const { error } = await supabase.from('leads').insert({
+        ...payload,
+        source_metadata: { consent, consent_text_version: 'v1' },
+      });
+      if (error) {
+        alert('Insert failed: ' + error.message);
+      } else {
+        onSaved();
+        fetch('/api/leads/alert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: form.name, phone: form.phone, email: form.email, source: form.source, notes: form.notes }),
+        }).catch(() => {});
+      }
     }
 
     setSaving(false);
@@ -148,6 +164,19 @@ export default function LeadModal({ lead, companyId, vehicles, onClose, onSaved 
               <textarea className="w-full rounded border px-3 py-2" rows={3} value={form.notes} onChange={(e) => handleChange('notes', e.target.value)} />
             </div>
           </div>
+
+          {!lead?.id && (
+            <label className="flex items-start gap-2 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                required
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>Customer agreed that MOTOR DEALS USA may contact them by phone, text, or email about this inquiry.</span>
+            </label>
+          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={onClose} className="rounded border px-4 py-2 hover:bg-gray-50">Cancel</button>
