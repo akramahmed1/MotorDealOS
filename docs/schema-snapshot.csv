@@ -1,0 +1,52 @@
+table_name,column_name,data_type,is_nullable
+vehicles,id,uuid,NO
+vehicles,company_id,uuid,NO
+vehicles,location_id,uuid,YES
+vehicles,vin,text,NO
+vehicles,year,integer,YES
+vehicles,make,text,YES
+vehicles,model,text,YES
+vehicles,trim,text,YES
+vehicles,color,text,YES
+vehicles,body_style,text,YES
+vehicles,miles,integer,YES
+vehicles,price,numeric,YES
+vehicles,status,text,NO
+vehicles,lot_location,text,NO
+vehicles,photos,jsonb,YES
+vehicles,video_url,text,YES
+vehicles,features,jsonb,YES
+vehicles,metadata,jsonb,YES
+vehicles,acquisition_cost,numeric,YES
+vehicles,transport_cost,numeric,YES
+vehicles,inspection_cost,numeric,YES
+vehicles,service_cost,numeric,YES
+vehicles,wash_cost,numeric,YES
+vehicles,detail_cost,numeric,YES
+vehicles,garage_cost,numeric,YES
+vehicles,marketing_cost,numeric,YES
+vehicles,total_cost_basis,numeric,YES
+vehicles,profit_projection,numeric,YES
+vehicles,created_by,uuid,YES
+vehicles,updated_by,uuid,YES
+vehicles,created_at,timestamp with time zone,YES
+vehicles,updated_at,timestamp with time zone,YES
+vehicles,deleted_at,timestamp with time zone,YES
+chat_messages,id,uuid,
+chat_messages,session_id,uuid,
+chat_messages,role,text,
+chat_messages,content,text,
+chat_messages,metadata,jsonb,
+chat_messages,created_at,timestamp with time zone,
+chat_sessions,id,uuid,
+chat_sessions,company_id,uuid,
+chat_sessions,lead_id,uuid,
+chat_sessions,session_token,text,
+chat_sessions,source,text,
+chat_sessions,status,text,
+chat_sessions,user_name,text,
+chat_sessions,user_phone,text,
+chat_sessions,user_email,text,
+chat_sessions,vehicle_id,uuid,
+chat_sessions,created_at,timestamp with time zone,
+chat_sessions,updated_at,timestamp with time zone,

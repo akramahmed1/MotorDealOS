@@ -12,7 +12,7 @@ interface Lead {
   lead_score: string;
   status: string;
   notes: string;
-  vehicle_id?: string;
+  vehicle_id?: string | null;
 }
 
 interface LeadModalProps {
@@ -40,7 +40,7 @@ const sourceOptions = [
 ];
 
 export default function LeadModal({ lead, companyId, vehicles, onClose, onSaved }: LeadModalProps) {
-  const [form, setForm] = useState<<Lead>(emptyLead);
+  const [form, setForm] = useState<Lead>(emptyLead);
   const [saving, setSaving] = useState(false);
   const supabase = createBrowserClient();
 

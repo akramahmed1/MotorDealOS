@@ -3,6 +3,33 @@
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@/lib/supabase/client';
 
+// Shape of a row from the real `vehicles_enriched` view / `vehicles` table (see docs/schema-snapshot.csv).
+interface VehicleRecord {
+  id: string;
+  vin: string;
+  year: number | null;
+  make: string | null;
+  model: string | null;
+  trim: string | null;
+  color: string | null;
+  body_style: string | null;
+  miles: number | null;
+  price: number | null;
+  status: string;
+  lot_location: string;
+  video_url: string | null;
+  features: Record<string, unknown> | null;
+  acquisition_cost: number | null;
+  transport_cost: number | null;
+  inspection_cost: number | null;
+  service_cost: number | null;
+  wash_cost: number | null;
+  detail_cost: number | null;
+  garage_cost: number | null;
+  marketing_cost: number | null;
+}
+
+// Local edit-form state (all fields required for controlled inputs; features kept as a JSON string while editing).
 interface Vehicle {
   id?: string;
   vin: string;
@@ -29,7 +56,7 @@ interface Vehicle {
 }
 
 interface VehicleModalProps {
-  vehicle: Vehicle | null;
+  vehicle: VehicleRecord | null;
   companyId: string;
   onClose: () => void;
   onSaved: () => void;
@@ -67,10 +94,28 @@ export default function VehicleModal({ vehicle, companyId, onClose, onSaved }: V
   useEffect(() => {
     if (vehicle) {
       setForm({
-        ...vehicle,
-        features: typeof vehicle.features === 'object' && vehicle.features !== null
-          ? JSON.stringify(vehicle.features, null, 2)
-          : vehicle.features || '',
+        id: vehicle.id,
+        vin: vehicle.vin,
+        year: vehicle.year ?? new Date().getFullYear(),
+        make: vehicle.make ?? '',
+        model: vehicle.model ?? '',
+        trim: vehicle.trim ?? '',
+        color: vehicle.color ?? '',
+        body_style: vehicle.body_style ?? '',
+        miles: vehicle.miles ?? 0,
+        price: vehicle.price ?? 0,
+        status: vehicle.status,
+        lot_location: vehicle.lot_location,
+        acquisition_cost: vehicle.acquisition_cost ?? 0,
+        transport_cost: vehicle.transport_cost ?? 0,
+        inspection_cost: vehicle.inspection_cost ?? 0,
+        service_cost: vehicle.service_cost ?? 0,
+        wash_cost: vehicle.wash_cost ?? 0,
+        detail_cost: vehicle.detail_cost ?? 0,
+        garage_cost: vehicle.garage_cost ?? 0,
+        marketing_cost: vehicle.marketing_cost ?? 0,
+        video_url: vehicle.video_url ?? '',
+        features: vehicle.features ? JSON.stringify(vehicle.features, null, 2) : '',
       });
     } else {
       setForm(emptyVehicle);
