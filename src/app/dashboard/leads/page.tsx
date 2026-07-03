@@ -42,12 +42,12 @@ const scoreColors: Record<string, string> = {
 };
 
 export default function LeadsPage() {
-  const [leads, setLeads] = useState<<Lead[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingLead, setEditingLead] = useState<<Lead | null>(null);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const supabase = createBrowserClient();
 
   async function loadData() {

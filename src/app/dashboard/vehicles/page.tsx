@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@/lib/supabase/client';
 import VehicleModal from '@/components/VehicleModal';
 
+// Matches the `vehicles_enriched` view (see docs/schema-snapshot.csv), which is `vehicles` plus days_on_market.
 interface Vehicle {
   id: string;
   vin: string;
@@ -12,10 +13,21 @@ interface Vehicle {
   model: string;
   trim: string;
   color: string;
+  body_style: string;
   miles: number;
   price: number;
   status: string;
   lot_location: string;
+  video_url: string;
+  features: Record<string, unknown> | null;
+  acquisition_cost: number;
+  transport_cost: number;
+  inspection_cost: number;
+  service_cost: number;
+  wash_cost: number;
+  detail_cost: number;
+  garage_cost: number;
+  marketing_cost: number;
   total_cost_basis: number;
   profit_projection: number;
   days_on_market: number;
