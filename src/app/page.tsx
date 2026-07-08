@@ -1,7 +1,15 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import type { Metadata } from 'next';
 import { getLiveVehicles } from '@/lib/vehicles';
 import { vehicleSlug } from '@/lib/vehicle-types';
+import { DEALERSHIP_NAME, DEALERSHIP_LOCALITY, SITE_DESCRIPTION } from '@/lib/site-config';
+
+export const metadata: Metadata = {
+  title: `${DEALERSHIP_NAME} — Used Cars in ${DEALERSHIP_LOCALITY}`,
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: '/' },
+};
 
 export default async function Home() {
   const vehicles = await getLiveVehicles();

@@ -1,10 +1,32 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
+import type { Metadata } from 'next';
 import { getVehicleBySlug } from '@/lib/vehicles';
 import LeadCaptureForm from '@/components/LeadCaptureForm';
+import { DEALERSHIP_LOCALITY, SITE_URL } from '@/lib/site-config';
 
 interface VehicleDetailPageProps {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: VehicleDetailPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const vehicle = await getVehicleBySlug(slug);
+  if (!vehicle) return {};
+
+  const title = `Used ${vehicle.year} ${vehicle.make} ${vehicle.model} in ${DEALERSHIP_LOCALITY}`;
+  const description = `${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.trim || ''} — ${
+    vehicle.miles ? `${vehicle.miles.toLocaleString()} miles, ` : ''
+  }$${vehicle.price?.toLocaleString() ?? 'call for price'}. Located in ${DEALERSHIP_LOCALITY}.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/inventory/${slug}` },
+    // Omit the openGraph key entirely (rather than setting it to undefined) when there's no
+    // photo, so Next.js's file-convention opengraph-image.tsx fallback still applies.
+    ...(vehicle.photos?.[0] ? { openGraph: { images: [{ url: vehicle.photos[0] }] } } : {}),
+  };
 }
 
 export default async function VehicleDetailPage({ params }: VehicleDetailPageProps) {
@@ -12,6 +34,26 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
   const vehicle = await getVehicleBySlug(slug);
 
   if (!vehicle) notFound();
+
+  const vehicleJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Vehicle',
+    name: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+    vehicleModelDate: vehicle.year,
+    manufacturer: vehicle.make,
+    model: vehicle.model,
+    vehicleIdentificationNumber: vehicle.vin,
+    mileageFromOdometer: vehicle.miles
+      ? { '@type': 'QuantitativeValue', value: vehicle.miles, unitCode: 'SMI' }
+      : undefined,
+    offers: {
+      '@type': 'Offer',
+      price: vehicle.price,
+      priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock',
+      url: `${SITE_URL}/inventory/${slug}`,
+    },
+  };
 
   const photos = vehicle.photos && vehicle.photos.length > 0 ? vehicle.photos : [];
 
@@ -28,6 +70,10 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(vehicleJsonLd) }}
+      />
       <h1 className="text-2xl font-bold text-gray-900">
         {vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim}
       </h1>
