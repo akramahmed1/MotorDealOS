@@ -9,6 +9,7 @@ const navItems = [
   { href: '/dashboard/vehicles', label: 'Vehicles', icon: '🚗' },
   { href: '/dashboard/leads', label: 'Leads', icon: '👥' },
   { href: '/dashboard/imports/autofunds', label: 'Import Inventory', icon: '📥' },
+  { href: '/dashboard/imports/workbook', label: 'Import Workbook', icon: '📋' },
 ];
 
 export default function Sidebar() {
