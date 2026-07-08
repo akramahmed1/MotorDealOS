@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { createBrowserClient } from '@/lib/supabase/client';
 
+const CONSENT_TEXT =
+  'By submitting, you agree that MOTOR DEALS USA may contact you by phone, text, or email about your inquiry.';
+
 export default function ContactPage() {
   const [form, setForm] = useState({
     name: '',
@@ -11,8 +14,10 @@ export default function ContactPage() {
     interest: 'general',
     message: '',
   });
+  const [consent, setConsent] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const supabase = createBrowserClient();
 
   const handleChange = (field: string, value: string) => {
@@ -21,9 +26,14 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!consent) {
+      setError('Please confirm you agree to be contacted before submitting.');
+      return;
+    }
+    setError('');
     setSaving(true);
 
-    const { error } = await supabase.from('leads').insert({
+    const { error: insertError } = await supabase.from('leads').insert({
       company_id: '00000000-0000-0000-0000-000000000001',
       name: form.name,
       phone: form.phone,
@@ -32,9 +42,10 @@ export default function ContactPage() {
       lead_score: 'warm',
       status: 'new',
       notes: `Interest: ${form.interest}. Message: ${form.message}`,
+      source_metadata: { consent: true, consent_text_version: 'v1' },
     });
 
-    if (error) alert('Submit failed: ' + error.message);
+    if (insertError) alert('Submit failed: ' + insertError.message);
     else setSubmitted(true);
 
     setSaving(false);
@@ -89,6 +100,17 @@ export default function ContactPage() {
             <label className="mb-1 block text-sm font-medium text-gray-700">Message</label>
             <textarea className="w-full rounded border px-3 py-2" rows={4} value={form.message} onChange={(e) => handleChange('message', e.target.value)} />
           </div>
+          <label className="flex items-start gap-2 text-xs text-gray-600">
+            <input
+              type="checkbox"
+              required
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>{CONSENT_TEXT}</span>
+          </label>
+          {error && <p className="text-sm text-red-600">{error}</p>}
           <button type="submit" disabled={saving} className="w-full rounded bg-blue-600 py-2 text-white hover:bg-blue-700 disabled:opacity-50">
             {saving ? 'Sending...' : 'Send Message'}
           </button>
