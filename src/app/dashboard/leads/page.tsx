@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@/lib/supabase/client';
 import LeadModal from '@/components/LeadModal';
+import QuickAddLeadModal from '@/components/QuickAddLeadModal';
 
 interface Lead {
   id: string;
@@ -26,11 +27,15 @@ interface VehicleOption {
   model: string;
 }
 
+const STATUS_OPTIONS = ['new', 'contacted', 'appointment', 'came in', 'test drive', 'negotiating', 'sold', 'lost'] as const;
+
 const statusColors: Record<string, string> = {
   new: 'bg-blue-100 text-blue-800',
   contacted: 'bg-yellow-100 text-yellow-800',
   appointment: 'bg-purple-100 text-purple-800',
-  negotiation: 'bg-orange-100 text-orange-800',
+  'came in': 'bg-indigo-100 text-indigo-800',
+  'test drive': 'bg-pink-100 text-pink-800',
+  negotiating: 'bg-orange-100 text-orange-800',
   sold: 'bg-green-100 text-green-800',
   lost: 'bg-gray-100 text-gray-800',
 };
@@ -46,7 +51,9 @@ export default function LeadsPage() {
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const supabase = createBrowserClient();
 
@@ -75,6 +82,7 @@ export default function LeadsPage() {
   }, []);
 
   const filteredLeads = leads.filter((l) => {
+    if (statusFilter && l.status !== statusFilter) return false;
     const term = search.toLowerCase();
     return (
       l.name?.toLowerCase().includes(term) ||
@@ -97,15 +105,23 @@ export default function LeadsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Lead Pipeline</h1>
           <p className="text-gray-600">Track prospects from first contact to close</p>
         </div>
-        <button
-          onClick={() => { setEditingLead(null); setModalOpen(true); }}
-          className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-        >
-          + Add Lead
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setQuickAddOpen(true)}
+            className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+          >
+            Quick Add
+          </button>
+          <button
+            onClick={() => { setEditingLead(null); setModalOpen(true); }}
+            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          >
+            + Add Lead
+          </button>
+        </div>
       </div>
 
-      <div className="mb-4 flex gap-4">
+      <div className="mb-4 flex flex-wrap gap-4">
         <input
           type="text"
           placeholder="Search name, phone, email..."
@@ -113,6 +129,16 @@ export default function LeadsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <select
+          className="rounded border px-3 py-2"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="">All Statuses</option>
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
       </div>
 
       {loading ? (
@@ -187,6 +213,14 @@ export default function LeadsPage() {
           companyId="00000000-0000-0000-0000-000000000001"
           vehicles={vehicles}
           onClose={() => setModalOpen(false)}
+          onSaved={loadData}
+        />
+      )}
+
+      {quickAddOpen && (
+        <QuickAddLeadModal
+          companyId="00000000-0000-0000-0000-000000000001"
+          onClose={() => setQuickAddOpen(false)}
           onSaved={loadData}
         />
       )}
