@@ -127,7 +127,9 @@ export default function LeadModal({ lead, companyId, vehicles, onClose, onSaved 
                 <option value="new">New</option>
                 <option value="contacted">Contacted</option>
                 <option value="appointment">Appointment</option>
-                <option value="negotiation">Negotiation</option>
+                <option value="came in">Came In</option>
+                <option value="test drive">Test Drive</option>
+                <option value="negotiating">Negotiating</option>
                 <option value="sold">Sold</option>
                 <option value="lost">Lost</option>
               </select>
