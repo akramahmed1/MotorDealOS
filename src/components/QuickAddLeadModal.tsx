@@ -13,7 +13,7 @@ const SOURCES = [
   { value: 'facebook', label: 'Facebook' },
   { value: 'instagram', label: 'Instagram' },
   { value: 'tiktok', label: 'TikTok' },
-  { value: 'walk_in', label: 'Walk-in' },
+  { value: 'walkin', label: 'Walk-in' },
   { value: 'phone', label: 'Phone' },
 ] as const;
 

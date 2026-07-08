@@ -3,12 +3,13 @@
 // to the owner. Never sends anything to the customer — internal notification only.
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const OWNER_EMAIL = 'motordealsusa@gmail.com';
-// Resend sandbox/test sending — domain verification is on hold (DNS managed by
-// AutoFunds' Cloudflare account). Until a domain is verified, Resend only allows
-// sending to the Resend account's own signup email, so real alerts to OWNER_EMAIL
-// will fail (502) until that's resolved — verified end-to-end 2026-07-08 by
-// temporarily pointing this at the account's signup email (see PR #4 discussion).
+// INTENTIONAL interim state (see CLAUDE.md "Build order" 2.5d) — Resend sandbox mode
+// only allows sending to the account's own signup email until a sending domain is
+// verified (blocked on DNS access, managed via AutoFunds' Cloudflare account, tracked
+// separately). Deployed to akramahmed1@gmail.com on purpose so real alerts are
+// received somewhere during dev/testing. MUST redeploy to motordealsusa@gmail.com
+// before real launch, once domain verification lands.
+const OWNER_EMAIL = 'akramahmed1@gmail.com';
 const FROM_EMAIL = 'onboarding@resend.dev';
 
 interface LeadRecord {
