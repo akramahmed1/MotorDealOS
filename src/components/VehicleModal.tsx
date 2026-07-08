@@ -130,10 +130,17 @@ export default function VehicleModal({ vehicle, companyId, onClose, onSaved }: V
     e.preventDefault();
     setSaving(true);
 
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id ?? null;
+
     // Build payload with ONLY editable fields
     // Exclude: days_on_market, total_cost_basis, profit_projection (computed/generated)
+    // updated_by (and created_by on insert) mark this as a human edit — the AutoFunds
+    // importer deliberately leaves updated_by null so the two are distinguishable
+    // (see docs/AutoFunds import conflict rule in CLAUDE.md).
     const payload = {
       company_id: companyId,
+      updated_by: userId,
       vin: form.vin,
       year: form.year,
       make: form.make,
@@ -168,7 +175,7 @@ export default function VehicleModal({ vehicle, companyId, onClose, onSaved }: V
       if (error) alert('Update failed: ' + error.message);
       else onSaved();
     } else {
-      const { error } = await supabase.from('vehicles').insert(payload);
+      const { error } = await supabase.from('vehicles').insert({ ...payload, created_by: userId });
       if (error) alert('Insert failed: ' + error.message);
       else onSaved();
     }
