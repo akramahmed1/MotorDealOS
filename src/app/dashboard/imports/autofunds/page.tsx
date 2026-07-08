@@ -146,6 +146,12 @@ export default function AutofundsImportPage() {
 
       {preview && (
         <div className="mt-6 space-y-6">
+          {preview.newCount + preview.updateCount + preview.soldCount + preview.conflictCount + preview.skippedCount === 0 && (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">
+              ✓ Inventory already up to date — no changes found. This file matches what&apos;s already in the system, nothing to import.
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
             <div className="rounded-lg bg-white p-4 shadow"><div className="text-2xl font-bold text-green-600">{preview.newCount}</div><div className="text-xs text-gray-500">New</div></div>
             <div className="rounded-lg bg-white p-4 shadow"><div className="text-2xl font-bold text-blue-600">{preview.updateCount}</div><div className="text-xs text-gray-500">Updated</div></div>
@@ -216,14 +222,18 @@ export default function AutofundsImportPage() {
           )}
 
           <div className="flex gap-3">
-            <button onClick={reset} className="rounded border px-4 py-2 hover:bg-gray-50">Cancel</button>
-            <button
-              onClick={handleConfirm}
-              disabled={loading}
-              className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? 'Importing...' : `Confirm Import (${preview.newCount + preview.updateCount + preview.soldCount} changes)`}
+            <button onClick={reset} className="rounded border px-4 py-2 hover:bg-gray-50">
+              {preview.newCount + preview.updateCount + preview.soldCount === 0 ? 'Done' : 'Cancel'}
             </button>
+            {preview.newCount + preview.updateCount + preview.soldCount > 0 && (
+              <button
+                onClick={handleConfirm}
+                disabled={loading}
+                className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? 'Importing...' : `Confirm Import (${preview.newCount + preview.updateCount + preview.soldCount} changes)`}
+              </button>
+            )}
           </div>
         </div>
       )}
