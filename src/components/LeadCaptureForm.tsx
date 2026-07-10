@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { createBrowserClient } from '@/lib/supabase/client';
 
 const CONSENT_TEXT =
   'By submitting, you agree that MOTOR DEALS USA may contact you by phone, text, or email about your inquiry.';
@@ -21,7 +20,6 @@ export default function LeadCaptureForm({ vehicleId, intent, onDone }: LeadCaptu
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
-  const supabase = createBrowserClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,22 +30,25 @@ export default function LeadCaptureForm({ vehicleId, intent, onDone }: LeadCaptu
     setError('');
     setSaving(true);
 
-    const { error: insertError } = await supabase.from('leads').insert({
-      company_id: '00000000-0000-0000-0000-000000000001',
-      name,
-      phone,
-      email,
-      source: 'website',
-      lead_score: 'warm',
-      status: 'new',
-      vehicle_id: vehicleId,
-      notes: `[${intent === 'test_drive' ? 'Schedule Test Drive' : 'Ask About This Car'}] ${message}`,
-      source_metadata: { consent: true, consent_text_version: 'v1' },
+    const res = await fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        company_id: '00000000-0000-0000-0000-000000000001',
+        name,
+        phone,
+        email,
+        source: 'website',
+        lead_score: 'warm',
+        vehicle_id: vehicleId,
+        notes: `[${intent === 'test_drive' ? 'Schedule Test Drive' : 'Ask About This Car'}] ${message}`,
+        consent: true,
+      }),
     });
 
     setSaving(false);
 
-    if (insertError) {
+    if (!res.ok) {
       setError('Something went wrong submitting your request. Please call us instead.');
       return;
     }
