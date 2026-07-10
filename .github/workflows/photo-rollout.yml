@@ -1,0 +1,27 @@
+name: Photo Rollout (Task 4c)
+
+# Manual only — this writes real vehicle photos to Supabase Storage and
+# updates vehicles.photos. Never runs on push or a schedule. Run once from
+# the Actions tab after confirming SUPABASE_SERVICE_ROLE_KEY and
+# NEXT_PUBLIC_SUPABASE_URL are set as repo secrets.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  rollout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run rollout:photos
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: photo-rollout-report
+          path: photo-rollout-report.json
