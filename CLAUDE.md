@@ -1,6 +1,7 @@
 # CLAUDE.md — MotorDealOS (v2)
 
-> **FROZEN v1.0 — July 2, 2026.** Reviewed and locked. Changes only via a PR that also updates this version line.
+> **FROZEN v1.1 — July 10, 2026.** Reviewed and locked. Changes only via a PR that also updates this version line.
+> v1.1 change: added rule 0 under Karpathy rules — verify `main`'s real state at session start before planning (see PR history for context: a session lost track of already-merged Tasks 3/4a/4b/4c and nearly proposed duplicate work).
 
 Project constitution. Every Claude Code session must follow this document.
 
@@ -98,6 +99,7 @@ The human is non-technical and verifies by clicking, not by reading code. The lo
 
 **PLAN → BUILD → VERIFY → SHIP, one small loop at a time.**
 
+0. **Verify real state before planning.** At the start of every session, before proposing any plan, run `git log main --oneline -10` (or equivalent) and cross-check it against the build-order task list above. Session memory of "what's done" can be stale or wrong — the actual `main` branch is the only source of truth. If they disagree, say so and re-derive the plan from `main`, don't proceed on the stale assumption.
 1. **Think before coding.** Every task starts with a short plain-English plan + success criteria ("done means: you open the preview link on your phone, tap X, and see Y"). No code until the human approves the plan.
 2. **Small verifiable chunks.** If the human can't verify it by clicking through a preview in under 10 minutes, the task is too big — split it.
 3. **Surgical changes.** Touch the minimum files. Never refactor or "improve" things not asked about. No new dependencies without a one-line justification in the PR.
