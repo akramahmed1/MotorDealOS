@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed:autofunds": "tsx scripts/seed-vehicles-from-autofunds.ts"
+    "seed:autofunds": "tsx scripts/seed-vehicles-from-autofunds.ts",
+    "rollout:photos": "node scripts/photo-rollout.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -37,6 +38,7 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.10",
     "postcss": "^8.4.38",
+    "sharp": "^0.33.4",
     "tsx": "^4.23.0",
     "typescript": "^5.4.5",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
