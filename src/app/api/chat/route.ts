@@ -39,6 +39,15 @@ function formatInventorySnapshot(vehicles: Awaited<ReturnType<typeof getLiveVehi
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    return await handleChatPost(req);
+  } catch (err) {
+    console.error('[chat] UNHANDLED error in /api/chat:', (err as Error).stack || (err as Error).message);
+    return NextResponse.json({ error: 'Unexpected server error.' }, { status: 500 });
+  }
+}
+
+async function handleChatPost(req: NextRequest) {
   const json = await req.json().catch(() => null);
   const parsed = chatRequestSchema.safeParse(json);
   if (!parsed.success) {
@@ -59,9 +68,18 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
 
   // Find or create the chat session.
-  let session = sessionToken
-    ? (await supabase.from('chat_sessions').select('id, session_token, lead_id').eq('session_token', sessionToken).maybeSingle()).data
-    : null;
+  let session = null;
+  if (sessionToken) {
+    const { data, error } = await supabase
+      .from('chat_sessions')
+      .select('id, session_token, lead_id')
+      .eq('session_token', sessionToken)
+      .maybeSingle();
+    if (error) {
+      console.error('[chat] chat_sessions lookup errored:', error.message);
+    }
+    session = data;
+  }
 
   if (!session) {
     sessionToken = crypto.randomUUID();
@@ -78,16 +96,20 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (sessionError) {
-      return NextResponse.json({ error: 'Could not start chat session.' }, { status: 500 });
+      console.error('[chat] chat_sessions insert errored:', sessionError.message);
+      return NextResponse.json({ error: 'Could not start chat session.', detail: sessionError.message }, { status: 500 });
     }
     session = newSession;
   }
 
-  await supabase.from('chat_messages').insert({
+  const { error: userMessageError } = await supabase.from('chat_messages').insert({
     session_id: session.id,
     role: 'user',
     content: message,
   });
+  if (userMessageError) {
+    console.error('[chat] chat_messages (user) insert errored:', userMessageError.message);
+  }
 
   // Capture the lead the moment we have name+phone+consent, regardless of
   // whether the AI call below succeeds — a lead shouldn't get lost just
@@ -107,7 +129,12 @@ export async function POST(req: NextRequest) {
     });
     if ('id' in result) {
       leadId = result.id;
-      await supabase.from('chat_sessions').update({ lead_id: leadId }).eq('id', session.id);
+      const { error: linkError } = await supabase.from('chat_sessions').update({ lead_id: leadId }).eq('id', session.id);
+      if (linkError) {
+        console.error('[chat] chat_sessions lead_id link update errored:', linkError.message);
+      }
+    } else {
+      console.error('[chat] createLead errored:', result.error);
     }
   }
 
@@ -147,11 +174,14 @@ ${formatInventorySnapshot(vehicles)}`;
     );
   }
 
-  await supabase.from('chat_messages').insert({
+  const { error: assistantMessageError } = await supabase.from('chat_messages').insert({
     session_id: session.id,
     role: 'assistant',
     content: reply,
   });
+  if (assistantMessageError) {
+    console.error('[chat] chat_messages (assistant) insert errored:', assistantMessageError.message);
+  }
 
   return NextResponse.json({ session_token: sessionToken, reply, lead_captured: !!leadId });
 }
