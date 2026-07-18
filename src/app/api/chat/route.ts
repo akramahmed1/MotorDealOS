@@ -6,6 +6,11 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { createLead } from '@/lib/leads';
 import { getLiveVehicles } from '@/lib/vehicles';
 
+// Gives the route's own 20s AI-call timeout (src/lib/ai.ts) room to fire and
+// be caught gracefully, rather than Vercel's platform-level function timeout
+// killing the request first with no chance to log or return a fallback.
+export const maxDuration = 30;
+
 const COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 
 const chatRequestSchema = z.object({
