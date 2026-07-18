@@ -88,7 +88,7 @@ async function handleChatPost(req: NextRequest) {
       .insert({
         company_id: COMPANY_ID,
         session_token: sessionToken,
-        source: 'chat_widget',
+        source: 'website',
         status: 'open',
         vehicle_id: vehicle_id || null,
       })
