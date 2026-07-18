@@ -17,24 +17,44 @@ export interface ChatMessage {
   content: string;
 }
 
+// Vercel can kill a serverless function mid-flight on timeout, which gives
+// application code no chance to log or return a graceful fallback — the
+// request just dies silently. This explicit timeout makes a slow provider
+// fail loudly, on our terms, well before that happens.
+const REQUEST_TIMEOUT_MS = 20_000;
+
 export async function getChatCompletion(messages: ChatMessage[]): Promise<string> {
   if (!AI_API_KEY || !AI_BASE_URL) {
     throw new Error('AI provider not configured (missing AI_API_KEY or AI_BASE_URL)');
   }
 
-  const res = await fetch(`${AI_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${AI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      messages,
-      max_tokens: 400,
-      temperature: 0.4,
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(`${AI_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${AI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: AI_MODEL,
+        messages,
+        max_tokens: 400,
+        temperature: 0.4,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') {
+      throw new Error(`AI provider (${AI_PROVIDER}) request timed out after ${REQUEST_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     throw new Error(`AI provider (${AI_PROVIDER}) request failed: ${res.status} ${await res.text()}`);
