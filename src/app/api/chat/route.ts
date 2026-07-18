@@ -89,7 +89,7 @@ async function handleChatPost(req: NextRequest) {
         company_id: COMPANY_ID,
         session_token: sessionToken,
         source: 'website',
-        status: 'open',
+        status: 'active',
         vehicle_id: vehicle_id || null,
       })
       .select('id, session_token, lead_id')
