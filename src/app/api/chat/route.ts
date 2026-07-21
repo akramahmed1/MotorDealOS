@@ -43,6 +43,32 @@ function formatInventorySnapshot(vehicles: Awaited<ReturnType<typeof getLiveVehi
     .join('\n');
 }
 
+// The system prompt only asks the model to cap vehicle lists at 5 — models
+// don't reliably follow that, so enforce it here regardless of what came back.
+const MAX_VEHICLES_PER_REPLY = 5;
+
+function capVehicleList(reply: string, max = MAX_VEHICLES_PER_REPLY): string {
+  const lines = reply.split('\n');
+  const bulletIndices = lines
+    .map((line, i) => (line.trim().startsWith('- ') ? i : -1))
+    .filter((i) => i >= 0);
+
+  if (bulletIndices.length <= max) return reply;
+
+  const keep = new Set(bulletIndices.slice(0, max));
+  const hiddenCount = bulletIndices.length - max;
+  const kept = lines.filter((_, i) => keep.has(i) || !bulletIndices.includes(i));
+
+  const lastLine = kept[kept.length - 1]?.trim() ?? '';
+  if (!lastLine.endsWith('?')) {
+    kept.push(
+      `There ${hiddenCount === 1 ? 'is' : 'are'} ${hiddenCount} more matching — want me to narrow it down by price, body style, or mileage?`
+    );
+  }
+
+  return kept.join('\n');
+}
+
 export async function POST(req: NextRequest) {
   try {
     return await handleChatPost(req);
@@ -167,7 +193,7 @@ ${formatInventorySnapshot(vehicles)}`;
       ...(history ?? []).map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
     ];
 
-    reply = await getChatCompletion(messages);
+    reply = capVehicleList(await getChatCompletion(messages));
   } catch (err) {
     console.error('[chat] AI completion failed, falling back:', (err as Error).message);
     return NextResponse.json(
