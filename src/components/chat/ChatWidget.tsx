@@ -104,7 +104,7 @@ export default function ChatWidget() {
             {messages.map((m, i) => (
               <div
                 key={i}
-                className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                className={`max-w-[85%] whitespace-pre-line rounded-lg px-3 py-2 text-sm ${
                   m.role === 'user' ? 'ml-auto bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'
                 }`}
               >
