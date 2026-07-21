@@ -1,9 +1,10 @@
--- Task 5 (AI chat): src/lib/rate-limit.ts assumes rate_limits has these
--- columns: identifier (text), endpoint (text), request_count (int),
--- window_start (timestamptz). This wasn't visible in docs/schema-snapshot.csv
--- (same gap as `leads` before it — the snapshot is stale/incomplete).
+-- CONFIRMED 2026-07-21 against the live dev/staging table (yfxdyjlowcnjghntzffz):
+-- rate_limits actually has ip_address (not identifier), endpoint, request_count,
+-- window_start, created_at, id — plus an unused `count` column. There is no
+-- `identifier` or `company_id` column. src/lib/rate-limit.ts has been updated
+-- to select/insert against `ip_address`.
 --
--- Run the SELECT below in the Supabase SQL editor to confirm the real shape
+-- Run the SELECT below in the Supabase SQL editor to re-confirm the real shape
 -- BEFORE relying on this in production. If columns differ, either adjust
 -- src/lib/rate-limit.ts to match, or run the CREATE TABLE below (only if
 -- rate_limits doesn't already exist under a different shape — check first).

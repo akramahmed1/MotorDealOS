@@ -11,10 +11,9 @@ const MAX_REQUESTS_PER_WINDOW = 20;
 // stays usable rather than going down entirely — but that means the abuse cap
 // silently stops working, so any failure here is logged loudly (console.error)
 // rather than swallowed, so it surfaces in Vercel logs immediately instead of
-// going unnoticed. The exact shape of `rate_limits` wasn't visible in the
-// schema snapshot at build time — assumed columns: identifier, endpoint,
-// request_count, window_start. See supabase/sql/2026-07-11-rate-limits-check.sql
-// to confirm/adjust against the live table.
+// going unnoticed. Live table confirmed 2026-07-21: the identifier column is
+// actually named `ip_address`, not `identifier` — there is no `identifier` or
+// `company_id` column. See supabase/sql/2026-07-11-rate-limits-check.sql.
 export async function checkRateLimit(identifier: string, endpoint: string): Promise<boolean> {
   try {
     const supabase = await createClient();
@@ -23,7 +22,7 @@ export async function checkRateLimit(identifier: string, endpoint: string): Prom
     const { data: existing, error: selectError } = await supabase
       .from('rate_limits')
       .select('id, request_count, window_start')
-      .eq('identifier', identifier)
+      .eq('ip_address', identifier)
       .eq('endpoint', endpoint)
       .gte('window_start', windowStart)
       .order('window_start', { ascending: false })
@@ -39,7 +38,7 @@ export async function checkRateLimit(identifier: string, endpoint: string): Prom
 
     if (!existing) {
       const { error: insertError } = await supabase.from('rate_limits').insert({
-        identifier,
+        ip_address: identifier,
         endpoint,
         request_count: 1,
         window_start: new Date().toISOString(),
