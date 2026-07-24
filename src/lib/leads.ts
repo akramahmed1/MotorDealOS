@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const leadSchema = z.object({
   company_id: z.string().uuid(),
@@ -23,12 +23,19 @@ export type LeadInput = z.infer<typeof leadSchema>;
 // Owner alert emails are handled entirely by the leads_notify_owner DB trigger
 // (supabase/migrations-manual/lead-notify-trigger.sql) + lead-notify Edge
 // Function on every insert — callers of this never send anything themselves.
+//
+// Uses the service-role client rather than the anon-key one: there's no anon
+// SELECT policy on `leads` (correctly — that would let anyone with the anon
+// key read every customer's name/phone/notes), but this function needs to
+// read back the new row's id. Since Zod (leadSchema) and the consent check
+// above already gate what can be inserted, the service role here is doing
+// authorized work, not bypassing a check that should have run.
 export async function createLead(input: LeadInput): Promise<{ id: string } | { error: string }> {
   if (!input.consent) {
     return { error: 'Consent is required.' };
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('leads')
     .insert({
