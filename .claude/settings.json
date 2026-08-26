@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ~/agentdrifthook/bin/agentdrifthook.js session-start-check",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ~/agentdrifthook/bin/agentdrifthook.js check-hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
