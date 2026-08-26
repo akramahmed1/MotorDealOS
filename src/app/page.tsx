@@ -3,7 +3,15 @@ import Image from 'next/image';
 import type { Metadata } from 'next';
 import { getLiveVehicles } from '@/lib/vehicles';
 import { vehicleSlug } from '@/lib/vehicle-types';
-import { DEALERSHIP_NAME, DEALERSHIP_LOCALITY, SITE_DESCRIPTION } from '@/lib/site-config';
+import {
+  DEALERSHIP_NAME,
+  DEALERSHIP_LOCALITY,
+  DEALERSHIP_ADDRESS,
+  DEALERSHIP_PHONE,
+  DEALERSHIP_HOURS,
+  SITE_DESCRIPTION,
+} from '@/lib/site-config';
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: `${DEALERSHIP_NAME} — Used Cars in ${DEALERSHIP_LOCALITY}`,
@@ -66,18 +74,19 @@ export default async function Home() {
         <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-3">
           <div>
             <h3 className="mb-2 font-semibold text-gray-900">Visit Us</h3>
-            {/* TODO(owner): confirm exact street address before this ships publicly */}
-            <p className="text-gray-600">Glenview, IL</p>
+            <p className="text-gray-600">{DEALERSHIP_ADDRESS}</p>
           </div>
           <div>
             <h3 className="mb-2 font-semibold text-gray-900">Hours</h3>
-            {/* TODO(owner): confirm real hours before this ships publicly */}
-            <p className="text-gray-600">Mon–Sat: 9am–7pm<br />Sun: By appointment</p>
+            <p className="text-gray-600">{DEALERSHIP_HOURS}</p>
           </div>
           <div>
             <h3 className="mb-2 font-semibold text-gray-900">Call Us</h3>
-            {/* TODO(owner): add real phone number before this ships publicly */}
-            <p className="text-gray-600">(___) ___-____</p>
+            <p className="text-gray-600">
+              <a href={`tel:${DEALERSHIP_PHONE.replace(/[^\d+]/g, '')}`} className="hover:underline">
+                {DEALERSHIP_PHONE}
+              </a>
+            </p>
           </div>
         </div>
       </section>
@@ -87,6 +96,8 @@ export default async function Home() {
         <h2 className="text-xl font-semibold text-gray-900">Why Buy From Us</h2>
         <p className="mt-2 text-gray-500">Trust content placeholder — reviews and certifications coming soon.</p>
       </section>
+
+      <Footer />
     </main>
   );
 }
