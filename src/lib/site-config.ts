@@ -8,9 +8,14 @@ export const SITE_URL =
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
 export const DEALERSHIP_NAME = 'MOTOR DEALS USA';
-// TODO(owner): confirm exact street address, hours, and phone before launch (see src/app/page.tsx TODOs).
+export const DEALERSHIP_LEGAL_NAME = 'Cash Any Car LLC';
 export const DEALERSHIP_CITY = 'Glenview';
 export const DEALERSHIP_STATE = 'IL';
 export const DEALERSHIP_LOCALITY = `${DEALERSHIP_CITY}, ${DEALERSHIP_STATE}`;
+export const DEALERSHIP_ADDRESS = '1822 Johns Drive, Glenview, IL 60025';
+export const DEALERSHIP_PHONE = '(773) 350-0002';
+export const DEALERSHIP_PHONE_SECONDARY = '(224) 766-5842';
+export const DEALERSHIP_HOURS = 'Mon–Sat 10:00 AM – 7:00 PM, Sunday closed';
+export const PRICE_DISCLAIMER = 'Price excludes tax, title, license, and documentation fee.';
 
 export const SITE_DESCRIPTION = `Quality used vehicles in ${DEALERSHIP_LOCALITY} — inspected, priced fair, ready to drive.`;
