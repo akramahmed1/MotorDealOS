@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 .pnpm-store/
+# Secrets: never commit; use Vercel env vars in production
 .env
 .env.local
 .env.production
