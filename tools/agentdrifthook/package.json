@@ -1,0 +1,12 @@
+{
+  "name": "agentdrifthook",
+  "version": "0.1.0",
+  "description": "Phase 1 pilot: cross-project convention ledger for Claude Code sessions",
+  "type": "module",
+  "bin": {
+    "agentdrift": "./bin/agentdrifthook.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
