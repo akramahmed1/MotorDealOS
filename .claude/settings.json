@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/agentdrifthook/bin/agentdrifthook.js session-start-check",
+            "command": "node /home/user/MotorDealOS/tools/agentdrifthook/bin/agentdrifthook.js session-start-check",
             "timeout": 15
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/agentdrifthook/bin/agentdrifthook.js check-hook",
+            "command": "node /home/user/MotorDealOS/tools/agentdrifthook/bin/agentdrifthook.js check-hook",
             "timeout": 10
           }
         ]
