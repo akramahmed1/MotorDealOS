@@ -3,7 +3,7 @@ import Image from 'next/image';
 import type { Metadata } from 'next';
 import { getVehicleBySlug } from '@/lib/vehicles';
 import LeadCaptureForm from '@/components/LeadCaptureForm';
-import { DEALERSHIP_LOCALITY, SITE_URL } from '@/lib/site-config';
+import { DEALERSHIP_LOCALITY, SITE_URL, PRICE_DISCLAIMER } from '@/lib/site-config';
 
 interface VehicleDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -115,10 +115,7 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
         <div>
           <div className="rounded-lg bg-white p-6 shadow">
             <div className="text-3xl font-bold text-blue-600">${vehicle.price?.toLocaleString()}</div>
-            <p className="mt-1 text-xs text-gray-500">
-              {/* TODO(owner): confirm exact doc fee amount before this ships publicly */}
-              Price excludes tax, title, license, and $[doc fee] — confirm final price at time of sale.
-            </p>
+            <p className="mt-1 text-xs text-gray-500">{PRICE_DISCLAIMER}</p>
 
             <div className="mt-6 space-y-6">
               <div>

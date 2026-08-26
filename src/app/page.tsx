@@ -3,7 +3,15 @@ import Image from 'next/image';
 import type { Metadata } from 'next';
 import { getLiveVehicles } from '@/lib/vehicles';
 import { vehicleSlug } from '@/lib/vehicle-types';
-import { DEALERSHIP_NAME, DEALERSHIP_LOCALITY, SITE_DESCRIPTION } from '@/lib/site-config';
+import {
+  DEALERSHIP_NAME,
+  DEALERSHIP_LOCALITY,
+  DEALERSHIP_ADDRESS,
+  DEALERSHIP_PHONE,
+  DEALERSHIP_HOURS,
+  SITE_DESCRIPTION,
+} from '@/lib/site-config';
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: `${DEALERSHIP_NAME} — Used Cars in ${DEALERSHIP_LOCALITY}`,
@@ -66,27 +74,47 @@ export default async function Home() {
         <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-3">
           <div>
             <h3 className="mb-2 font-semibold text-gray-900">Visit Us</h3>
-            {/* TODO(owner): confirm exact street address before this ships publicly */}
-            <p className="text-gray-600">Glenview, IL</p>
+            <p className="text-gray-600">{DEALERSHIP_ADDRESS}</p>
           </div>
           <div>
             <h3 className="mb-2 font-semibold text-gray-900">Hours</h3>
-            {/* TODO(owner): confirm real hours before this ships publicly */}
-            <p className="text-gray-600">Mon–Sat: 9am–7pm<br />Sun: By appointment</p>
+            <p className="text-gray-600">{DEALERSHIP_HOURS}</p>
           </div>
           <div>
             <h3 className="mb-2 font-semibold text-gray-900">Call Us</h3>
-            {/* TODO(owner): add real phone number before this ships publicly */}
-            <p className="text-gray-600">(___) ___-____</p>
+            <p className="text-gray-600">
+              <a href={`tel:${DEALERSHIP_PHONE.replace(/[^\d+]/g, '')}`} className="hover:underline">
+                {DEALERSHIP_PHONE}
+              </a>
+            </p>
           </div>
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 py-16 text-center">
-        {/* TODO(owner): replace with real reviews/testimonials/certifications before launch */}
         <h2 className="text-xl font-semibold text-gray-900">Why Buy From Us</h2>
-        <p className="mt-2 text-gray-500">Trust content placeholder — reviews and certifications coming soon.</p>
+        <p className="mx-auto mt-3 max-w-2xl text-gray-600">
+          {DEALERSHIP_NAME} is a licensed independent used-car dealer in {DEALERSHIP_LOCALITY}. Our
+          roots go back to 2006 with Ideal Cars in Dubai — two decades of buying, inspecting, and
+          selling vehicles the honest way.
+        </p>
+        <div className="mx-auto mt-8 grid max-w-3xl gap-6 text-left sm:grid-cols-3">
+          <div className="rounded-lg border bg-white p-5">
+            <div className="font-semibold text-gray-900">Since 2006</div>
+            <p className="mt-1 text-sm text-gray-600">Family heritage in the used-car business, from Ideal Cars (Dubai) to {DEALERSHIP_NAME} today.</p>
+          </div>
+          <div className="rounded-lg border bg-white p-5">
+            <div className="font-semibold text-gray-900">Every Car Inspected</div>
+            <p className="mt-1 text-sm text-gray-600">Vehicles are inspected and reconditioned on our lot before they're listed for sale.</p>
+          </div>
+          <div className="rounded-lg border bg-white p-5">
+            <div className="font-semibold text-gray-900">Local &amp; Licensed</div>
+            <p className="mt-1 text-sm text-gray-600">A licensed Illinois dealer serving Glenview and nearby Cook County communities.</p>
+          </div>
+        </div>
       </section>
+
+      <Footer />
     </main>
   );
 }

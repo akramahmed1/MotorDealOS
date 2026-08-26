@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { SITE_URL, DEALERSHIP_NAME, DEALERSHIP_LOCALITY, SITE_DESCRIPTION } from "@/lib/site-config";
 import ConditionalChatWidget from "@/components/chat/ConditionalChatWidget";
+import { Analytics } from "@vercel/analytics/next";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
         />
         {children}
         <ConditionalChatWidget />
+        <Analytics />
       </body>
     </html>
   );
