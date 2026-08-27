@@ -9,6 +9,28 @@
         "completion-semantics"
       ],
       "source_file": "AGENTS.md"
+    },
+    {
+      "id": "type-assertions-that-bypass-structural-type-checking-on-data",
+      "type": "lint-gate",
+      "statement": "Type assertions that bypass structural type-checking on data returned from external sources must not be introduced",
+      "declared_in_project": "MotorDealOS",
+      "declared_at": "2026-08-27T16:51:58.035Z",
+      "tags": [
+        "type-safety"
+      ],
+      "source_file": null,
+      "rule": "@typescript-eslint/no-unsafe-type-assertion",
+      "baseline": {
+        "src/app/api/chat/route.ts": 4,
+        "src/app/api/cron/weekly-export/route.ts": 4,
+        "src/app/api/imports/workbook/route.ts": 2,
+        "src/app/dashboard/imports/workbook/page.tsx": 2,
+        "src/components/InventoryBrowser.tsx": 3,
+        "src/lib/ai.ts": 1,
+        "src/lib/rate-limit.ts": 1,
+        "src/lib/vehicles.ts": 2
+      }
     }
   ]
 }

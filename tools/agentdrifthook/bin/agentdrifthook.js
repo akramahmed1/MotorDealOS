@@ -5,6 +5,7 @@
 
 import fs from "fs";
 import path from "path";
+import { execFileSync } from "child_process";
 import { fileURLToPath } from "url";
 
 // Vendored inside the repo (tools/agentdrifthook) so data persists across
@@ -176,14 +177,96 @@ function cmdScanSourceFiles() {
   }
 }
 
+// Runs ESLint (via the project's own node_modules/.bin/eslint so version/config
+// always match what CI and the human's own `next lint` would use) against a
+// single file and returns how many messages a specific ruleId produced there.
+// Returns null (not 0) on any invocation failure — callers must treat null as
+// "couldn't check," not "clean," so a broken ESLint setup never masquerades as
+// a passing lint-gate.
+function runEslintRuleCountForFile(repoRoot, relFilePath, ruleId) {
+  const eslintBin = path.join(repoRoot, "node_modules", ".bin", "eslint");
+  if (!fs.existsSync(eslintBin)) return null;
+  try {
+    const out = execFileSync(eslintBin, [relFilePath, "--format", "json"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      // ESLint exits 1 when it finds any lint errors/warnings — that's not a
+      // tool failure, so don't let a non-zero exit throw here.
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return countRuleMessages(out, ruleId);
+  } catch (err) {
+    // execFileSync throws on non-zero exit even though ESLint's own JSON
+    // output is still on stdout in that case (that's the normal "found
+    // warnings" path here, since we run with just one target rule).
+    if (err.stdout) return countRuleMessages(err.stdout, ruleId);
+    return null;
+  }
+}
+
+function countRuleMessages(eslintJsonOutput, ruleId) {
+  try {
+    const results = JSON.parse(eslintJsonOutput);
+    let count = 0;
+    for (const r of results) {
+      count += r.messages.filter((m) => m.ruleId === ruleId).length;
+    }
+    return count;
+  } catch {
+    return null;
+  }
+}
+
+// Snapshots the CURRENT per-file warning counts for `rule` across the whole
+// repo at the moment a lint-gate convention is added. This is the known
+// pre-existing backlog the convention must never retroactively flag — only
+// a file's count going ABOVE its snapshot value counts as a new violation.
+function computeLintGateBaseline(repoRoot, rule) {
+  const eslintBin = path.join(repoRoot, "node_modules", ".bin", "eslint");
+  if (!fs.existsSync(eslintBin)) {
+    return { ok: false, reason: `ESLint not found at ${eslintBin} — run npm install first.` };
+  }
+  let out;
+  try {
+    out = execFileSync(eslintBin, ["src/", "--format", "json"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (err) {
+    if (!err.stdout) {
+      return { ok: false, reason: `ESLint invocation failed: ${err.message}` };
+    }
+    out = err.stdout;
+  }
+  let results;
+  try {
+    results = JSON.parse(out);
+  } catch {
+    return { ok: false, reason: "Could not parse ESLint JSON output while computing baseline." };
+  }
+  const baseline = {};
+  let total = 0;
+  for (const r of results) {
+    const count = r.messages.filter((m) => m.ruleId === rule).length;
+    if (count > 0) {
+      baseline[path.relative(repoRoot, r.filePath)] = count;
+      total += count;
+    }
+  }
+  return { ok: true, baseline, total };
+}
+
 function cmdAdd(args) {
   const statement = args._[0];
   if (!statement) {
     console.error('Usage: agentdrift add "<statement>" --tags=x,y --source=AGENTS.md|CLAUDE.md');
+    console.error('       agentdrift add "<statement>" --type=lint-gate --rule=<eslint-rule-id> --tags=x,y');
     process.exit(1);
   }
   const tags = (args.tags || "").split(",").map((t) => t.trim()).filter(Boolean);
   const source = args.source || null; // which file this convention should live in, if known
+  const type = args.type || "grep-pattern";
   const data = loadLedger();
   const id = statement
     .toLowerCase()
@@ -197,14 +280,35 @@ function cmdAdd(args) {
     return;
   }
 
-  data.conventions.push({
+  const convention = {
     id,
+    type,
     statement,
     declared_in_project: currentProjectName(),
     declared_at: new Date().toISOString(),
     tags,
     source_file: source,
-  });
+  };
+
+  if (type === "lint-gate") {
+    if (!args.rule) {
+      console.error('lint-gate conventions require --rule=<eslint-rule-id>, e.g. --rule=@typescript-eslint/no-unsafe-type-assertion');
+      process.exit(1);
+    }
+    convention.rule = args.rule;
+    const repoRoot = findMonorepoRoot(process.cwd());
+    console.log(`Snapshotting current "${args.rule}" warnings as baseline (pre-existing backlog, never flagged retroactively)...`);
+    const result = computeLintGateBaseline(repoRoot, args.rule);
+    if (!result.ok) {
+      console.error(`Could not compute baseline: ${result.reason}`);
+      console.error("Convention NOT added — a lint-gate convention without a real baseline would flag the entire pre-existing backlog as new.");
+      process.exit(1);
+    }
+    convention.baseline = result.baseline;
+    console.log(`Baseline: ${result.total} pre-existing warning(s) across ${Object.keys(result.baseline).length} file(s) — these will never be flagged.`);
+  }
+
+  data.conventions.push(convention);
   saveLedger(data);
   console.log(`Added convention [${id}] from project "${currentProjectName()}"`);
 }
@@ -317,22 +421,54 @@ function cmdCheck(args) {
   runCheck(target, process.cwd());
 }
 
+const LINTABLE_EXTENSIONS = new Set([".ts", ".tsx"]);
+
 function runCheck(target, cwd) {
-  const content = fs.readFileSync(target, "utf8").toLowerCase();
   const data = loadLedger();
   const flags = [];
 
-  for (const c of data.conventions) {
-    // naive keyword overlap heuristic — flags for human review, never blocks
-    const words = c.statement
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, "")
-      .split(/\s+/)
-      .filter((w) => w.length > 4);
+  const grepConventions = data.conventions.filter((c) => (c.type || "grep-pattern") === "grep-pattern");
+  const lintGateConventions = data.conventions.filter((c) => c.type === "lint-gate");
 
-    const hits = words.filter((w) => content.includes(w));
-    if (hits.length >= Math.max(2, Math.ceil(words.length * 0.3))) {
-      flags.push({ convention: c, matchedWords: hits });
+  // Phase 1: naive keyword overlap heuristic — flags for human review, never blocks.
+  if (grepConventions.length > 0) {
+    const content = fs.readFileSync(target, "utf8").toLowerCase();
+    for (const c of grepConventions) {
+      const words = c.statement
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, "")
+        .split(/\s+/)
+        .filter((w) => w.length > 4);
+
+      const hits = words.filter((w) => content.includes(w));
+      if (hits.length >= Math.max(2, Math.ceil(words.length * 0.3))) {
+        flags.push({ convention: c, matchedWords: hits });
+      }
+    }
+  }
+
+  // Phase 2: lint-gate — run the convention's ESLint rule against just this
+  // file, compare its current warning count to the pre-existing baseline
+  // snapshotted when the convention was added. Only an INCREASE flags.
+  const ext = path.extname(target);
+  if (lintGateConventions.length > 0 && LINTABLE_EXTENSIONS.has(ext)) {
+    const repoRoot = findMonorepoRoot(cwd);
+    const relPath = path.relative(repoRoot, target);
+    for (const c of lintGateConventions) {
+      const currentCount = runEslintRuleCountForFile(repoRoot, relPath, c.rule);
+      if (currentCount === null) {
+        // Couldn't run ESLint (missing install, parse error, etc.) — log
+        // nothing rather than guess; this is surfaced via check-hook's own
+        // stderr, not as a false "clean" or false "flag".
+        continue;
+      }
+      const baselineCount = (c.baseline && c.baseline[relPath]) || 0;
+      if (currentCount > baselineCount) {
+        flags.push({
+          convention: c,
+          lintGate: { file: relPath, baselineCount, currentCount, newCount: currentCount - baselineCount },
+        });
+      }
     }
   }
 
@@ -342,6 +478,11 @@ function runCheck(target, cwd) {
     target,
     flagCount: flags.length,
     flaggedIds: flags.map((f) => f.convention.id),
+    // Present only when at least one flag came from a lint-gate convention —
+    // grep-pattern-only runs keep the original entry shape unchanged.
+    ...(flags.some((f) => f.lintGate) && {
+      lintGateDetails: flags.filter((f) => f.lintGate).map((f) => ({ id: f.convention.id, ...f.lintGate })),
+    }),
     confirmed: null, // set later via `agentdrift confirm <index> --status=true|false`
   };
   appendLog(entry);
@@ -355,7 +496,15 @@ function runCheck(target, cwd) {
   for (const f of flags) {
     console.log(`- [${f.convention.id}] "${f.convention.statement}"`);
     console.log(`  declared in: ${f.convention.declared_in_project}`);
-    console.log(`  matched on: ${f.matchedWords.join(", ")}\n`);
+    if (f.lintGate) {
+      console.log(
+        `  lint-gate: ${f.convention.rule} on ${f.lintGate.file} — ` +
+        `${f.lintGate.currentCount} warning(s) now vs ${f.lintGate.baselineCount} baseline ` +
+        `(${f.lintGate.newCount} new)\n`
+      );
+    } else {
+      console.log(`  matched on: ${f.matchedWords.join(", ")}\n`);
+    }
   }
   console.log(
     "This is a heads-up, not a block. Confirm the new change is consistent " +
@@ -496,10 +645,14 @@ switch (cmd) {
     cmdGateStatus();
     break;
   default:
-    console.log(`Convention Ledger — Phase 1 pilot
+    console.log(`Convention Ledger — Phase 1 (grep-pattern) + Phase 2 (lint-gate)
 
 Usage:
   agentdrift add "<statement>" [--tags=x,y] [--source=AGENTS.md|CLAUDE.md]
+  agentdrift add "<statement>" --type=lint-gate --rule=<eslint-rule-id> [--tags=x,y]
+                                                 # Phase 2: snapshots current per-file
+                                                 # ESLint warning counts as baseline; only
+                                                 # NEW warnings above that baseline flag.
   agentdrift list [--tags=x,y]
   agentdrift remove <id>                        # delete a convention by id
   agentdrift check <path-to-diff-or-file>      # manual check, for testing
