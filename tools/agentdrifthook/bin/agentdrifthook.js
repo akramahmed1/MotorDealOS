@@ -423,6 +423,13 @@ function cmdCheck(args) {
 
 const LINTABLE_EXTENSIONS = new Set([".ts", ".tsx"]);
 
+// Grep-pattern conventions only make sense against real source code — a
+// doc that quotes a convention's own rule text verbatim (e.g. this tool's
+// own PHASE1_STATUS.md) is a self-referential false positive, not a
+// violation. Confirmed twice in MotorDealOS. Restricting to source
+// extensions closes the whole class rather than excluding one file/dir.
+const GREP_PATTERN_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx"]);
+
 function runCheck(target, cwd) {
   const data = loadLedger();
   const flags = [];
@@ -431,7 +438,8 @@ function runCheck(target, cwd) {
   const lintGateConventions = data.conventions.filter((c) => c.type === "lint-gate");
 
   // Phase 1: naive keyword overlap heuristic — flags for human review, never blocks.
-  if (grepConventions.length > 0) {
+  // Only runs against source-code extensions (see GREP_PATTERN_EXTENSIONS above).
+  if (grepConventions.length > 0 && GREP_PATTERN_EXTENSIONS.has(path.extname(target))) {
     const content = fs.readFileSync(target, "utf8").toLowerCase();
     for (const c of grepConventions) {
       const words = c.statement
@@ -567,9 +575,17 @@ function cmdGateStatus() {
   const falsePositives = entries.filter((e) => e.confirmed === false);
   const unjudged = flaggedRuns.filter((e) => e.confirmed === null);
 
-  console.log("Phase 1 gate evidence:\n");
+  // Gate criterion, Option B: this tool's ledger/log is vendored per-repo
+  // by design (data persists via that repo's own git history — see the
+  // header comment above) so there is no shared/central ledger a single
+  // repo's log could ever tally 2+ projects from on its own. "2+ distinct
+  // projects" is therefore reported PER-REPO here (almost always 1, this
+  // repo's own name) and is verified as an external fact: the tool has
+  // independently passed its own per-repo criteria in 2+ different repos.
+  // Confirm that by running `gate-status` in each repo and comparing.
+  console.log("Phase 1 gate evidence (this repo only):\n");
   console.log(`  Total check runs logged:     ${entries.length}`);
-  console.log(`  Distinct projects used in:   ${projects.size} (${[...projects].join(", ") || "none"})`);
+  console.log(`  Distinct projects in THIS repo's log: ${projects.size} (${[...projects].join(", ") || "none"})`);
   console.log(`  Runs with at least 1 flag:   ${flaggedRuns.length}`);
   console.log(`  Confirmed TRUE positives:    ${truePositives.length}`);
   console.log(`  Confirmed FALSE positives:   ${falsePositives.length}`);
@@ -577,21 +593,29 @@ function cmdGateStatus() {
 
   const pass = {
     runs: entries.length >= 10,
-    projects: projects.size >= 2,
     truePositive: truePositives.length >= 1,
     noFalsePositives: falsePositives.length === 0,
     allJudged: unjudged.length === 0,
   };
 
-  console.log("\nGate checklist:");
+  console.log("\nGate checklist (per-repo criteria):");
   console.log(`  [${pass.runs ? "x" : " "}] 10+ check runs logged`);
-  console.log(`  [${pass.projects ? "x" : " "}] used across 2+ projects`);
   console.log(`  [${pass.truePositive ? "x" : " "}] at least 1 confirmed true positive`);
   console.log(`  [${pass.noFalsePositives ? "x" : " "}] zero confirmed false positives`);
   console.log(`  [${pass.allJudged ? "x" : " "}] every flag manually judged (none left pending)`);
 
-  const allPass = Object.values(pass).every(Boolean);
-  console.log(`\n${allPass ? "✅ GATE PASSED — ready for Phase 2" : "❌ Gate not yet passed"}`);
+  const perRepoPass = Object.values(pass).every(Boolean);
+  console.log(`\n${perRepoPass ? "✅ per-repo criteria PASSED" : "❌ per-repo criteria not yet passed"}`);
+  console.log(
+    "\nCross-repo criterion (checked manually, not by this command):\n" +
+    "  [ ] this tool has independently passed its own per-repo criteria above\n" +
+    "      in 2+ different repos — compare this output against another\n" +
+    "      repo's own `agentdrift gate-status` run.\n"
+  );
+  console.log(
+    `Overall: ${perRepoPass ? "this repo's half of the gate is met" : "gate not passed"} — ` +
+    "full Phase 1→2 gate additionally requires the cross-repo criterion above, confirmed by a human across both repos."
+  );
 }
 
 function parseArgs(argv) {

@@ -29,24 +29,57 @@ This is exactly the gap Phase 2 (lint-gate conventions) is built to close — se
 `lint-gate` convention type in `data/ledger.json` and the corresponding logic in
 `bin/agentdrifthook.js`'s `runCheck()`.
 
-## MotorDealOS gate status (as of this session)
+## Self-referential false positive (found and fixed this session)
 
-Two distinct pictures, kept separate rather than blended:
+This file itself triggered the `a-chain-of-operations-is-done-when-the-sender-is-last-in-the`
+grep-pattern convention twice (entries 35 and 37 in `data/hits.log.jsonl`), because it quoted
+that convention's own rule text verbatim — a self-referential match, not a real violation.
+Both were confirmed FALSE positives. Root cause: the grep-pattern matcher ran against every
+file type, including this tool's own `.md` docs.
 
-**Phase 1 (grep-pattern) alone, before Phase 2 was implemented in this session:**
-27 runs logged, 0 ever flagged, 0 confirmed true positives, 0 confirmed false positives.
-The one grep-pattern convention in the ledger (`a-chain-of-operations-is-done-when-the-
-sender-is-last-in-the`) has no natural site in this codebase to violate — see the session
-record for that investigation. No genuine true positive has been produced by the
-grep-pattern mechanism in MotorDealOS.
+**Fix applied:** grep-pattern conventions now only run against real source-code extensions
+(`GREP_PATTERN_EXTENSIONS` in `bin/agentdrifthook.js`: `.ts`, `.tsx`, `.js`, `.jsx`) — never
+`.md`. Verified with disposable fixtures: a `.md` file quoting a convention verbatim no longer
+flags; a `.ts` file with a genuine violation of a different convention still flags correctly.
+This closes the whole self-referential-doc class, not just this one file.
 
-**Combined (Phase 1 + Phase 2), after this session's work:**
-35 runs logged, 1 flagged (from a deliberate, real Phase 2 lint-gate test — a scratch file
-introducing a genuine new unsafe type assertion, created and deleted within this session
-to prove the hook fires end-to-end via the real PostToolUse wiring, not invoked manually).
-That flag is unreviewed as of this writing — see `data/hits.log.jsonl` and run
-`agentdrift pending` for the current queue.
+**Convention retired:** `a-chain-of-operations-is-done-when-the-sender-is-last-in-the` has
+now produced two confirmed false positives and zero true positives across every run in this
+repo. Removed from `data/ledger.json` rather than left seeded — it has no natural site to
+violate in this codebase (see prior investigation) and was the direct cause of the recurring
+false positive above.
 
-Gate checklist (10+ runs, 2+ projects, 1+ confirmed true positive, 0 confirmed false
-positives, no flags left pending) is **not met**: MotorDealOS has only ever run in one
-project, and the one real flag produced so far has not yet been confirmed true or false.
+**Not silently ported to medai-platform.** medai-platform has its own copy of this tool and
+its own separate false-positive history/fix (the keyword-overlap → literal-match change at
+`3dacb1c`, referenced above). Whether the same `GREP_PATTERN_EXTENSIONS` restriction should
+also go into medai-platform is a separate, real question — flagged for a human decision, not
+applied here.
+
+## Gate criterion fix — "2+ distinct projects" (structural, not a policy choice)
+
+`cmdGateStatus()` counted distinct projects from this repo's own `hits.log.jsonl`. Since the
+ledger/log is vendored per-repo by design (so its data persists via that repo's own git
+history, not a shared file), a single repo's log can **never** show 2+ projects — no number of
+runs changes that. `gate-status` now reports pass/fail on the criteria a single repo's log can
+actually verify (10+ runs, 1+ confirmed true positive, 0 confirmed false positives, all flags
+judged), and reports "2+ distinct projects" as a separate cross-repo criterion that has to be
+confirmed by a human comparing this repo's `gate-status` output against another repo's.
+
+## MotorDealOS gate status (as of this session, after the fixes above)
+
+- **41** runs logged.
+- **3** flagged, all now judged: **1 confirmed true positive** (the deliberate Phase 2
+  lint-gate scratch-file test), **2 confirmed false positives** (both the self-referential
+  match above, now structurally fixed so it can't recur).
+- Per-repo checklist: 10+ runs ✅ · 1+ confirmed true positive ✅ · all flags judged ✅ ·
+  **zero confirmed false positives ❌** — 2 false positives are permanently on record even
+  though the bug that caused them is fixed, because the criterion as written is a lifetime
+  tally over the whole log, not "zero outstanding since the fix." **This repo's per-repo gate
+  cannot pass under that reading, ever, regardless of future runs.** Whether "zero confirmed
+  false positives" should reset after a confirmed fix, or stay a lifetime tally, is an open
+  question for a human to decide — not resolved in this session.
+- Cross-repo criterion (2+ distinct projects, per the fix above): not evaluated here — requires
+  comparing against medai-platform's own `gate-status` output.
+
+**Gate status: NOT PASSED**, and — pending the false-positive-tally question above — may not
+be passable in this repo under the criterion as currently written.

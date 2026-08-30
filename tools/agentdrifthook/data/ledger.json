@@ -1,16 +1,6 @@
 {
   "conventions": [
     {
-      "id": "a-chain-of-operations-is-done-when-the-sender-is-last-in-the",
-      "statement": "A chain of operations is done when the sender is last in the chain, not when a message with multiple recipients",
-      "declared_in_project": "MotorDealOS",
-      "declared_at": "2026-08-26T05:57:46.761Z",
-      "tags": [
-        "completion-semantics"
-      ],
-      "source_file": "AGENTS.md"
-    },
-    {
       "id": "type-assertions-that-bypass-structural-type-checking-on-data",
       "type": "lint-gate",
       "statement": "Type assertions that bypass structural type-checking on data returned from external sources must not be introduced",
