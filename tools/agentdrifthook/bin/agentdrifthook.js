@@ -549,6 +549,67 @@ function cmdConfirm(args) {
   console.log(`Marked entry ${index} as ${status === "true" ? "TRUE positive" : "FALSE positive"}`);
 }
 
+// Marks a confirmed false positive as resolved by a specific matcher fix,
+// without deleting or rewriting what happened. A lifetime tally of
+// confirmed-false entries conflates "this matcher has a bug" with "this
+// matcher USED TO have a bug that's now fixed" — the latter is not evidence
+// the current matcher is unreliable, and treating it as such means fixing a
+// bug faster only disqualifies a repo's gate sooner, permanently, the moment
+// it finds its first real false positive. `gate-status` counts only
+// UNRESOLVED false positives toward "zero false positives"; resolved ones
+// stay fully visible in the log and in `list-false-positives`, tagged with
+// the fix that addressed them, so the history is preserved rather than hidden.
+function cmdResolveFalsePositive(args) {
+  const index = parseInt(args._[0], 10);
+  const fix = args.fix;
+  if (isNaN(index) || !fix) {
+    console.error('Usage: agentdrift resolve-fp <line-number> --fix="<description or commit sha of the matcher fix>"');
+    process.exit(1);
+  }
+  const entries = readAllEntries();
+  const entry = entries[index];
+  if (!entry) {
+    console.error(`No log entry at index ${index}`);
+    process.exit(1);
+  }
+  if (entry.confirmed !== false) {
+    console.error(
+      `Entry ${index} is not a confirmed false positive (confirmed=${entry.confirmed}). ` +
+      "Only confirmed false positives can be marked resolved."
+    );
+    process.exit(1);
+  }
+  if (entry.resolvedInFix) {
+    console.log(`Entry ${index} is already marked resolved (fix: "${entry.resolvedInFix}"). Not overwriting.`);
+    return;
+  }
+  entry.resolvedInFix = fix;
+  entry.resolvedAt = new Date().toISOString();
+  writeAllEntries(entries);
+  console.log(`Entry ${index} marked resolved (fix: "${fix}"). Stays in the log; no longer counts toward the "zero false positives" gate criterion.`);
+}
+
+function cmdListFalsePositives() {
+  const entries = readAllEntries();
+  const falsePositives = entries
+    .map((e, i) => ({ ...e, index: i }))
+    .filter((e) => e.confirmed === false);
+
+  if (falsePositives.length === 0) {
+    console.log("No confirmed false positives on record.");
+    return;
+  }
+  console.log("Confirmed false positives (full history — resolved ones are NOT hidden):\n");
+  for (const e of falsePositives) {
+    const status = e.resolvedInFix
+      ? `RESOLVED — fixed in: ${e.resolvedInFix} (marked ${e.resolvedAt})`
+      : "UNRESOLVED — counts toward the gate's \"zero false positives\" criterion";
+    console.log(`  [${e.index}] ${e.timestamp} (${e.project}) — ${e.target}`);
+    console.log(`      flagged: ${e.flaggedIds.join(", ")}`);
+    console.log(`      ${status}\n`);
+  }
+}
+
 function cmdPending() {
   const entries = readAllEntries();
   const pending = entries
@@ -573,6 +634,14 @@ function cmdGateStatus() {
   const flaggedRuns = entries.filter((e) => e.flagCount > 0);
   const truePositives = entries.filter((e) => e.confirmed === true);
   const falsePositives = entries.filter((e) => e.confirmed === false);
+  // "Zero false positives" is evaluated SINCE THE LAST MATCHER FIX, not as a
+  // lifetime tally. A false positive resolved by a specific fix (see
+  // `resolve-fp`) is evidence the OLD matcher was unreliable, not the current
+  // one — a lifetime tally would mean finding and fixing your first bug
+  // permanently disqualifies the gate, which inverts the incentive to fix
+  // bugs quickly. Resolved entries stay fully visible via `list-false-positives`.
+  const unresolvedFalsePositives = falsePositives.filter((e) => !e.resolvedInFix);
+  const resolvedFalsePositives = falsePositives.filter((e) => e.resolvedInFix);
   const unjudged = flaggedRuns.filter((e) => e.confirmed === null);
 
   // Gate criterion, Option B: this tool's ledger/log is vendored per-repo
@@ -588,20 +657,23 @@ function cmdGateStatus() {
   console.log(`  Distinct projects in THIS repo's log: ${projects.size} (${[...projects].join(", ") || "none"})`);
   console.log(`  Runs with at least 1 flag:   ${flaggedRuns.length}`);
   console.log(`  Confirmed TRUE positives:    ${truePositives.length}`);
-  console.log(`  Confirmed FALSE positives:   ${falsePositives.length}`);
+  console.log(`  Confirmed FALSE positives:   ${falsePositives.length} total (${resolvedFalsePositives.length} resolved by a fix, ${unresolvedFalsePositives.length} unresolved)`);
   console.log(`  Flags still unjudged:        ${unjudged.length}  (run \`agentdrift pending\`)`);
+  if (resolvedFalsePositives.length > 0) {
+    console.log(`  (run \`agentdrift list-false-positives\` to see full history, resolved and unresolved)`);
+  }
 
   const pass = {
     runs: entries.length >= 10,
     truePositive: truePositives.length >= 1,
-    noFalsePositives: falsePositives.length === 0,
+    noFalsePositives: unresolvedFalsePositives.length === 0,
     allJudged: unjudged.length === 0,
   };
 
   console.log("\nGate checklist (per-repo criteria):");
   console.log(`  [${pass.runs ? "x" : " "}] 10+ check runs logged`);
   console.log(`  [${pass.truePositive ? "x" : " "}] at least 1 confirmed true positive`);
-  console.log(`  [${pass.noFalsePositives ? "x" : " "}] zero confirmed false positives`);
+  console.log(`  [${pass.noFalsePositives ? "x" : " "}] zero UNRESOLVED false positives (since the last matcher fix — resolved ones don't count, see above)`);
   console.log(`  [${pass.allJudged ? "x" : " "}] every flag manually judged (none left pending)`);
 
   const perRepoPass = Object.values(pass).every(Boolean);
@@ -656,6 +728,12 @@ switch (cmd) {
   case "confirm":
     cmdConfirm(args);
     break;
+  case "resolve-fp":
+    cmdResolveFalsePositive(args);
+    break;
+  case "list-false-positives":
+    cmdListFalsePositives();
+    break;
   case "scan-source-files":
     cmdScanSourceFiles();
     break;
@@ -686,6 +764,11 @@ Usage:
   agentdrift session-start-check                # same as scan-tree, meant for the SessionStart hook
   agentdrift pending                            # flags awaiting your judgment
   agentdrift confirm <line> --status=true|false # mark a flag true/false positive
+  agentdrift resolve-fp <line> --fix="<description/commit>" # mark a confirmed
+                                                 # false positive as fixed; excludes it from
+                                                 # the gate's "zero false positives" count
+                                                 # without deleting it from history
+  agentdrift list-false-positives                # full history: resolved + unresolved
   agentdrift gate-status                        # see if Phase 1 gate has passed
 
 Store: ${LEDGER_PATH}

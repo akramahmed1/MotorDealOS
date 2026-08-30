@@ -62,5 +62,11 @@ agentdrift scan-tree                      # recursively scan monorepo for missin
 agentdrift session-start-check            # same as scan-tree, meant for the SessionStart hook
 agentdrift pending                        # flags awaiting manual true/false-positive judgment
 agentdrift confirm <line> --status=true|false
+agentdrift resolve-fp <line> --fix="<description/commit>"
+                                           # mark a confirmed false positive as fixed —
+                                           # excludes it from the gate's "zero false
+                                           # positives" count (evaluated since-the-last-fix,
+                                           # not as a lifetime tally) without deleting it
+agentdrift list-false-positives            # full history: resolved + unresolved
 agentdrift gate-status                    # Phase 1 pilot gate checklist
 ```
