@@ -7,6 +7,10 @@ export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
+// The one dealership this app writes for. Server code sets this itself.
+// Public forms also send it, but those values are ignored.
+export const DEALERSHIP_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
+
 export const DEALERSHIP_NAME = 'MOTOR DEALS USA';
 export const DEALERSHIP_LEGAL_NAME = 'Cash Any Car LLC';
 export const DEALERSHIP_CITY = 'Glenview';

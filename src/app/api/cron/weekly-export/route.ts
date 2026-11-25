@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { toCsv } from '@/lib/csv';
+import { bearerSecretOk } from '@/lib/internal-auth';
+import { sendOwnerAlert } from '@/lib/owner-alert';
 
 // CLAUDE.md Task 7 (launch-readiness pack): weekly cron export of
 // vehicles+leads CSVs to Supabase Storage, keeping the last 8. Requires a
@@ -50,28 +52,22 @@ async function logResult(
   });
 
   if (level === 'error') {
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/owner-alert`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ subject: 'Weekly CSV export failed', message }),
-      });
-    } catch {
-      // best-effort — the system_logs row is the source of truth if the alert itself fails
-    }
+    await sendOwnerAlert('Weekly CSV export failed', message);
   }
 }
 
-export async function GET(req: NextRequest) {
-  // Vercel Cron sends this header automatically when CRON_SECRET is set; also
-  // lets you trigger it manually (e.g. from a preview) with the same header.
-  const authHeader = req.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+// Fail closed: a missing CRON_SECRET must not leave the export open.
+// Vercel Cron sends Authorization: Bearer $CRON_SECRET when that env var is set.
+export function unauthorizedCronResponse(authorization: string | null): NextResponse | null {
+  if (!bearerSecretOk(authorization, process.env.CRON_SECRET)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  return null;
+}
+
+export async function GET(req: NextRequest) {
+  const denied = unauthorizedCronResponse(req.headers.get('authorization'));
+  if (denied) return denied;
 
   const supabase = createAdminClient();
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');

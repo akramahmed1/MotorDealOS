@@ -52,11 +52,16 @@ export default function QuickAddLeadModal({ companyId, vehicles, onClose, onSave
         consent: true,
       }),
     });
+    const raw: unknown = await res.json().catch(() => null);
 
     setSaving(false);
 
     if (!res.ok) {
-      setError('Save failed. Try again.');
+      const serverError =
+        typeof raw === 'object' && raw !== null && 'error' in raw && typeof raw.error === 'string'
+          ? raw.error
+          : null;
+      setError(serverError ?? 'Save failed. Try again.');
       return;
     }
 

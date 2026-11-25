@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { parseAutofundsHtml, type ParsedAutofundsRow } from '@/lib/autofunds-parser';
+import { sendOwnerAlert } from '@/lib/owner-alert';
 
 const DEFAULT_LOT_LOCATION = 'main';
 
@@ -26,18 +27,7 @@ async function logAndAlert(
     message,
   });
 
-  try {
-    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/owner-alert`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ subject: 'AutoFunds import failed', message }),
-    });
-  } catch {
-    // best-effort — the system_logs row is the source of truth if the alert itself fails
-  }
+  await sendOwnerAlert('AutoFunds import failed', message);
 }
 
 export async function POST(req: NextRequest) {

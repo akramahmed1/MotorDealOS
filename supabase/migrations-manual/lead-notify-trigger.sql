@@ -1,3 +1,8 @@
+-- SUPERSEDED 2026-11-25 for new deploys. The function below authorizes the
+-- edge function with the anon key only. lead-notify now also requires
+-- x-owner-alert-secret. Use supabase/sql/2026-11-25-lead-notify-secret.sql
+-- and do not generate a new anon key — copy the one already in use.
+--
 -- Fires the lead-notify Edge Function on every INSERT into `leads`, regardless of
 -- which code path created the row (webhook, quick-add, or public CTA/contact forms
 -- inserting directly via the browser client). This is why a DB trigger is used

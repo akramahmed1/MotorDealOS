@@ -1,72 +1,101 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const WINDOW_MS = 60 * 60 * 1000; // 1 hour
-const MAX_REQUESTS_PER_WINDOW = 20;
+export const CHAT_MAX_PER_HOUR = 20;
 
-// Per-IP rate limiting via `rate_limits` (CLAUDE.md: "per-IP rate limiting via
-// rate_limits"), not per-session — an abusive actor can mint new sessions far
-// more easily than new IPs.
+// Per-IP (or per-staff-user) counters in `rate_limits`. The anon key used to
+// be able to read and reset these rows, which made the cap optional. Reads
+// and writes go through the service role now. If the check itself errors,
+// the request is refused (fail closed) so a broken limiter cannot be used
+// as a way around the cap.
 //
-// FAILS OPEN: if this check errors (schema mismatch, connection issue), chat
-// stays usable rather than going down entirely — but that means the abuse cap
-// silently stops working, so any failure here is logged loudly (console.error)
-// rather than swallowed, so it surfaces in Vercel logs immediately instead of
-// going unnoticed. Live table confirmed 2026-07-21: the identifier column is
-// actually named `ip_address`, not `identifier` — there is no `identifier` or
-// `company_id` column. See supabase/sql/2026-07-11-rate-limits-check.sql.
-export async function checkRateLimit(identifier: string, endpoint: string): Promise<boolean> {
-  try {
-    const supabase = await createClient();
-    const windowStart = new Date(Date.now() - WINDOW_MS).toISOString();
+// Live table shape confirmed 2026-07-21 in supabase/sql/2026-07-11-rate-limits-check.sql:
+// ip_address, endpoint, request_count, window_start, id. No company_id column.
 
-    const { data: existing, error: selectError } = await supabase
-      .from('rate_limits')
-      .select('id, request_count, window_start')
-      .eq('ip_address', identifier)
-      .eq('endpoint', endpoint)
-      .gte('window_start', windowStart)
-      .order('window_start', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+export interface RateLimitRow {
+  id: string;
+  request_count: number;
+}
 
-    if (selectError) {
-      console.error(
-        `[rate-limit] FAILING OPEN — select against rate_limits errored (schema mismatch? see supabase/sql/2026-07-11-rate-limits-check.sql): ${selectError.message}`
-      );
-      return true;
-    }
+export interface RateLimitStore {
+  find(ip: string, endpoint: string, windowStartIso: string): Promise<RateLimitRow | null>;
+  insert(ip: string, endpoint: string, windowStartIso: string): Promise<void>;
+  increment(id: string, nextCount: number): Promise<void>;
+}
 
-    if (!existing) {
-      const { error: insertError } = await supabase.from('rate_limits').insert({
-        ip_address: identifier,
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readRow(data: unknown): RateLimitRow | null {
+  if (!isRecord(data)) return null;
+  if (typeof data.id !== 'string' || typeof data.request_count !== 'number') return null;
+  return { id: data.id, request_count: data.request_count };
+}
+
+function errorMessage(error: unknown): string | null {
+  if (!isRecord(error) || typeof error.message !== 'string') return null;
+  return error.message;
+}
+
+function adminStore(): RateLimitStore {
+  const supabase = createAdminClient();
+  return {
+    async find(ip, endpoint, windowStartIso) {
+      const result = await supabase
+        .from('rate_limits')
+        .select('id, request_count, window_start')
+        .eq('ip_address', ip)
+        .eq('endpoint', endpoint)
+        .gte('window_start', windowStartIso)
+        .order('window_start', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const message = errorMessage(result.error);
+      if (message) throw new Error(message);
+      return readRow(result.data);
+    },
+    async insert(ip, endpoint, windowStartIso) {
+      const result = await supabase.from('rate_limits').insert({
+        ip_address: ip,
         endpoint,
         request_count: 1,
-        window_start: new Date().toISOString(),
+        window_start: windowStartIso,
       });
-      if (insertError) {
-        console.error(`[rate-limit] FAILING OPEN — insert into rate_limits errored: ${insertError.message}`);
-      }
+      const message = errorMessage(result.error);
+      if (message) throw new Error(message);
+    },
+    async increment(id, nextCount) {
+      const result = await supabase.from('rate_limits').update({ request_count: nextCount }).eq('id', id);
+      const message = errorMessage(result.error);
+      if (message) throw new Error(message);
+    },
+  };
+}
+
+export async function checkRateLimit(
+  identifier: string,
+  endpoint: string,
+  maxPerWindow = CHAT_MAX_PER_HOUR,
+  store?: RateLimitStore,
+): Promise<boolean> {
+  try {
+    const db = store ?? adminStore();
+    const windowStart = new Date(Date.now() - WINDOW_MS).toISOString();
+    const existing = await db.find(identifier, endpoint, windowStart);
+
+    if (!existing) {
+      await db.insert(identifier, endpoint, new Date().toISOString());
       return true;
     }
 
-    if (existing.request_count >= MAX_REQUESTS_PER_WINDOW) {
-      return false;
-    }
+    if (existing.request_count >= maxPerWindow) return false;
 
-    const { error: updateError } = await supabase
-      .from('rate_limits')
-      .update({ request_count: existing.request_count + 1 })
-      .eq('id', existing.id);
-
-    if (updateError) {
-      console.error(`[rate-limit] FAILING OPEN — update against rate_limits errored: ${updateError.message}`);
-    }
-
+    await db.increment(existing.id, existing.request_count + 1);
     return true;
   } catch (err) {
-    console.error(
-      `[rate-limit] FAILING OPEN — unexpected error checking rate_limits (verify table/columns exist): ${(err as Error).message}`
-    );
-    return true;
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error(`[rate-limit] FAILING CLOSED — rate_limits check errored: ${message}`);
+    return false;
   }
 }
