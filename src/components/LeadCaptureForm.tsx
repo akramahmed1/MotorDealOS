@@ -45,11 +45,16 @@ export default function LeadCaptureForm({ vehicleId, intent, onDone }: LeadCaptu
         consent: true,
       }),
     });
+    const raw: unknown = await res.json().catch(() => null);
 
     setSaving(false);
 
     if (!res.ok) {
-      setError('Something went wrong submitting your request. Please call us instead.');
+      const serverError =
+        typeof raw === 'object' && raw !== null && 'error' in raw && typeof raw.error === 'string'
+          ? raw.error
+          : null;
+      setError(serverError ?? 'Something went wrong submitting your request. Please call us instead.');
       return;
     }
 

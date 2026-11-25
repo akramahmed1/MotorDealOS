@@ -1,3 +1,9 @@
+-- SUPERSEDED 2026-11-25 for the policies at the bottom of this file. Do not re-run those.
+-- They grant the public anon key SELECT and UPDATE on rate_limits, which lets
+-- anyone reset the counters. Replacement:
+-- supabase/migrations/20261125120000_revoke_anon_chat_and_rate_limits.sql.
+-- The column notes in this file are still the shape the app uses.
+--
 -- CONFIRMED 2026-07-21 against the live dev/staging table (yfxdyjlowcnjghntzffz):
 -- rate_limits actually has ip_address (not identifier), endpoint, request_count,
 -- window_start, created_at, id — plus an unused `count` column. There is no

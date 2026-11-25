@@ -24,9 +24,11 @@ export async function middleware(req: NextRequest) {
     }
   );
 
-  const { data: { session } } = await supabase.auth.getSession();
+  // Confirm the user with Supabase Auth. Reading the cookie alone is not
+  // proof the person is signed in.
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
+  if (!user && req.nextUrl.pathname.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 

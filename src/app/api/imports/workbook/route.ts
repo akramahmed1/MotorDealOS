@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { sendOwnerAlert } from '@/lib/owner-alert';
 import {
   parseWorkbook,
   SOURCE_MAP,
@@ -40,15 +41,7 @@ async function logAndAlert(supabase: Awaited<ReturnType<typeof createClient>>, c
     service: 'workbook-import',
     message,
   });
-  try {
-    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/owner-alert`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
-      body: JSON.stringify({ subject: 'Workbook import failed', message }),
-    });
-  } catch {
-    // best-effort
-  }
+  await sendOwnerAlert('Workbook import failed', message);
 }
 
 export async function POST(req: NextRequest) {

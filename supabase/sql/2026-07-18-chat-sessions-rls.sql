@@ -1,3 +1,8 @@
+-- SUPERSEDED 2026-11-25. Do not run this file.
+-- It grants the public anon key SELECT and UPDATE on chat transcripts.
+-- The replacement is supabase/migrations/20261125120000_revoke_anon_chat_and_rate_limits.sql.
+-- Kept so the history of what was applied stays in the repo.
+--
 -- Task 5 (AI chat): fixes the actual root cause of every /api/chat request
 -- failing in production. Confirmed via Vercel logs:
 --   "new row violates row-level security policy for table chat_sessions"
